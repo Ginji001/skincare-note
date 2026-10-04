@@ -368,7 +368,7 @@ function editForm(){
   let h='<h2 style="margin:8px 0 6px">'+(n.id?'製品を編集':'製品を追加')+'</h2><div class="card">'+ocrBox()+
     '<label>製品名<input type="text" id="np-name" value="'+esc(n.name)+'"></label><label>種類<select id="np-cat">'+CATS.map(c=>'<option'+(c===n.cat?' selected':'')+'>'+c+'</option>').join('')+'</select></label>'+
     '<label>全成分（任意）<textarea class="f" id="np-ing" rows="4" placeholder="パッケージの全成分を入れると、成分の重なりをチェックできます">'+esc(n.ing)+'</textarea></label>'+
-    explainHtml(n.ing,n.cat)+
+    '<div id="np-ex">'+explainHtml(n.ing,n.cat)+'</div>'+
     '<div class="offbox"><div class="label" style="margin-top:0">公式の情報（任意）</div><div class="sub">メーカー公式サイトで製品説明・全成分を確認して入れておくと、成分からの推定と分けて表示されます。</div><div class="row"><button class="btn sm" data-act="osearch">公式情報を調べる</button></div>'+
     '<label>公式の説明<textarea class="f" id="np-off" rows="3" placeholder="公式サイトの製品説明を要約して入力">'+esc(n.official||'')+'</textarea></label><label>公式ページのURL<input type="text" id="np-url" inputmode="url" placeholder="https://" value="'+esc(n.officialUrl||'')+'"></label></div>'+
     '<div class="label">成分の目印</div><div class="sub">全成分から自動で付きます。足りないものはタップで追加できます。</div><div class="chips">'+Object.entries(TAGS).map(([k,v])=>{const on=auto.includes(k)||n.manualTags.includes(k);return'<button class="chip" data-act="mtag" data-k="'+k+'" aria-pressed="'+on+'" '+(auto.includes(k)?'disabled title="全成分から自動"':'')+'>'+esc(v)+(auto.includes(k)?'<small>自動</small>':'')+'</button>'}).join('')+'</div>'+
@@ -755,8 +755,8 @@ document.addEventListener('click',e=>{
   case'reset':if(!confirm('すべてのデータを消しますか？元に戻せません。'))break;S=blank();save();view.tab='today';render();break;
   }
 });
-document.addEventListener('input',e=>{if(e.target.dataset.act==='memo'){S.memo[view.date]=e.target.value;save()}if(e.target.id==='np-ing'&&view.np){view.np.ing=e.target.value}});
-document.addEventListener('change',e=>{if(e.target.id==='np-cat'&&view.np){readForm();render()}if(e.target.id==='np-ing'&&view.np){readForm();render()}});
+document.addEventListener('input',e=>{if(e.target.dataset.act==='memo'){S.memo[view.date]=e.target.value;save()}if(e.target.id==='np-ing'&&view.np){view.np.ing=e.target.value;clearTimeout(window._exT);window._exT=setTimeout(()=>{const x=document.getElementById('np-ex');if(x)x.innerHTML=explainHtml(view.np.ing,view.np.cat)},500)}});
+document.addEventListener('change',e=>{if(e.target.id==='np-cat'&&view.np){readForm();render()}});
 render();
 if('serviceWorker'in navigator)addEventListener('load',()=>navigator.serviceWorker.register('sw.js').catch(()=>{}));
 </script>
