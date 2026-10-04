@@ -190,6 +190,8 @@ nav.tabs button[aria-current="page"]{color:var(--blue)}
 .w-steps b{display:block;font-family:var(--serif);font-weight:600;font-size:16px;letter-spacing:.1em;margin-bottom:2px}
 .w-steps span:not(.w-num){font-size:13px;color:var(--sub)}
 nav.tabs[hidden]{display:none}
+.linkbtn{all:unset;cursor:pointer}
+.linkbtn:focus-visible{outline:2px solid var(--blue);outline-offset:3px}
 @media (prefers-reduced-motion:reduce){.w-orb{animation:none}}
 </style>
 
@@ -279,13 +281,13 @@ function render(){
   document.documentElement.dataset.mode=(view.tab==='today'&&view.mode==='pm')?'night':'day';
   document.querySelectorAll('#tabs button').forEach(b=>b.setAttribute('aria-current',b.dataset.tab===view.tab?'page':'false'));
   const app=document.getElementById('app');
-  const body=({today,week,prod:prodView,set:settings})[view.tab]();
-  app.innerHTML=(body.startsWith('<section class="welcome"')?'':'<header class="top"><h1>スキンケア・ノート</h1></header>')+body;
+  const body=view.showTop?welcome(true):({today,week,prod:prodView,set:settings})[view.tab]();
+  app.innerHTML=(body.startsWith('<section class="welcome"')?'':'<header class="top"><h1><button class="linkbtn" data-act="top" aria-label="トップページを見る">スキンケア・ノート</button></h1></header>')+body;
   document.getElementById('tabs').hidden=body.startsWith('<section class="welcome"');
   for(const k in timers)paintTimer(k);
 }
 function today(){
-  if(!Object.keys(S.products).length&&!S.started)return welcome();
+  if(!Object.keys(S.products).length&&!S.started)return welcome(false);
   const date=view.date,period=view.mode,r=resolve(date,period);
   const done=new Set(((S.log[date]||{})[period])||[]);
   const req=r.steps.filter(s=>s.state==='normal'),got=req.filter(s=>done.has(s.key)).length;
@@ -305,12 +307,12 @@ function today(){
   h+='<div class="label">この日のメモ</div><textarea class="memo" data-act="memo" placeholder="肌の調子、気づいたことなど">'+esc(S.memo[date]||'')+'</textarea>';
   return h;
 }
-function welcome(){
+function welcome(hasData){
   return'<section class="welcome"><div class="w-orb" aria-hidden="true"></div>'+
   '<p class="w-kicker">SKINCARE NOTE</p>'+
   '<h2 class="w-title">わたしの肌に、<br><em>ちょうどいい</em><br>手順を。</h2>'+
   '<p class="w-lead">使っている化粧品を登録して、曜日ごとの朝と夜のケアを組み立てる。成分の重なりもそっと知らせてくれる、スキンケアのためのノートです。</p>'+
-  '<div class="w-actions"><button class="btn primary" data-act="start">はじめる</button><button class="btn" data-act="sample">サンプルで試す</button></div>'+
+  (hasData?'<div class="w-actions"><button class="btn primary" data-act="closetop">今日のケアへ</button></div>':'<div class="w-actions"><button class="btn primary" data-act="start">はじめる</button><button class="btn" data-act="sample">サンプルで試す</button></div>')+
   '<p class="w-note">ログイン不要 ・ 無料 ・ データはこの端末の中だけ</p>'+
   '<ol class="w-steps"><li><span class="w-num">01</span><div><b>登録する</b><span>化粧品を、写真から読み取って登録</span></div></li>'+
   '<li><span class="w-num">02</span><div><b>組み立てる</b><span>曜日ごとに、朝と夜の手順をつくる</span></div></li>'+
@@ -362,6 +364,7 @@ function editForm(){
 function settings(){
   return'<h2 style="margin:8px 0">設定</h2>'+
   '<div class="card"><h3>バックアップ</h3><div class="sub">データはこの端末の中だけに保存されます。機種変更の前や、ときどき書き出しておくと安心です。</div><div class="row"><button class="btn" data-act="export">バックアップを書き出す</button><label class="btn" for="file" role="button">バックアップから戻す</label></div></div>'+
+  '<div class="card"><h3>トップページ</h3><div class="sub">アプリ名をタップしても開けます。</div><div class="row"><button class="btn" data-act="top">トップページを見る</button></div></div>'+
   '<div class="card"><h3>やり直す</h3><div class="sub">製品・ルーティン・チェック記録・メモをすべて消します。</div><div class="row"><button class="btn danger" data-act="reset">すべて消す</button></div></div>'+
   '<p class="disc">成分の目印と注意表示は、全成分の文字から機械的に判定した目安です。医療的な判断ではありません。肌トラブルがあるときや医薬品については、医師・薬剤師に相談してください。写真の読み取りは端末内で行い、写真やデータを外部に送信しません。</p>';
 }
@@ -470,11 +473,13 @@ setInterval(()=>{for(const k in timers)if(timers[k].run)paintTimer(k)},500);
 function readForm(){if(!view.np)return;const g=id=>document.getElementById(id);if(g('np-name'))view.np.name=g('np-name').value;if(g('np-cat'))view.np.cat=g('np-cat').value;if(g('np-ing'))view.np.ing=g('np-ing').value;if(g('np-memo'))view.np.memo=g('np-memo').value}
 document.addEventListener('click',e=>{
   const b=e.target.closest('[data-act],[data-tab]');if(!b)return;
-  if(b.dataset.tab){readForm();view.tab=b.dataset.tab;render();scrollTo(0,0);return}
+  if(b.dataset.tab){readForm();view.showTop=false;view.tab=b.dataset.tab;render();scrollTo(0,0);return}
   const a=b.dataset.act,date=view.date;
   switch(a){
-  case'start':S.started=true;save();view.tab='prod';view.np={name:'',cat:'化粧水',ing:'',memo:'',manualTags:[],sensitive:false};render();break;
-  case'sample':sample();break;
+  case'start':view.showTop=false;S.started=true;save();view.tab='prod';view.np={name:'',cat:'化粧水',ing:'',memo:'',manualTags:[],sensitive:false};render();break;
+  case'sample':view.showTop=false;sample();break;
+  case'top':readForm();view.showTop=true;render();scrollTo(0,0);break;
+  case'closetop':view.showTop=false;view.tab='today';render();scrollTo(0,0);break;
   case'mode':view.mode=b.dataset.m;render();break;
   case'day':{const n=+b.dataset.n;view.date=n===0?todayKey():addDays(view.date,n);render();break}
   case'sens':S.flags.sensitive=S.flags.sensitive===date?null:date;save();render();break;
