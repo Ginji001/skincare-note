@@ -237,7 +237,7 @@ function fmtDate(k){const d=parse(k);return(d.getMonth()+1)+'月'+d.getDate()+'�
 function esc(s){return String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))}
 function uid(){return Date.now().toString(36)+Math.random().toString(36).slice(2,6)}
 function toast(m){const t=document.getElementById('toast');t.textContent=m;t.classList.add('on');clearTimeout(t._h);t._h=setTimeout(()=>t.classList.remove('on'),1800)}
-let view={tab:'today',date:todayKey(),mode:new Date().getHours()>=15||new Date().getHours()<4?'pm':'am',wday:DK[new Date().getDay()],wmode:'am',np:null,ocr:null};
+let view={tab:'today',date:todayKey(),mode:new Date().getHours()>=15||new Date().getHours()<4?'pm':'am',wday:DK[new Date().getDay()],wmode:'am',np:null,ocr:null,showTop:!((window.matchMedia&&matchMedia('(display-mode: standalone)').matches)||navigator.standalone===true)};
 const timers={};
 
 /* ---------- 成分 ---------- */
@@ -281,7 +281,7 @@ function render(){
   document.documentElement.dataset.mode=(view.tab==='today'&&view.mode==='pm')?'night':'day';
   document.querySelectorAll('#tabs button').forEach(b=>b.setAttribute('aria-current',b.dataset.tab===view.tab?'page':'false'));
   const app=document.getElementById('app');
-  const body=view.showTop?welcome(true):({today,week,prod:prodView,set:settings})[view.tab]();
+  const body=view.showTop?welcome(Object.keys(S.products).length>0||!!S.started):({today,week,prod:prodView,set:settings})[view.tab]();
   app.innerHTML=(body.startsWith('<section class="welcome"')?'':'<header class="top"><h1><button class="linkbtn" data-act="top" aria-label="トップページを見る">スキンケア・ノート</button></h1></header>')+body;
   const isTop=body.startsWith('<section class="welcome"');
   document.getElementById('tabs').hidden=isTop;
