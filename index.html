@@ -190,6 +190,18 @@ nav.tabs button[aria-current="page"]{color:var(--blue)}
 .w-steps b{display:block;font-family:var(--serif);font-weight:600;font-size:16px;letter-spacing:.1em;margin-bottom:2px}
 .w-steps span:not(.w-num){font-size:13px;color:var(--sub)}
 nav.tabs[hidden]{display:none}
+.explain{background:var(--bg);border:1px solid var(--line);border-radius:14px;padding:12px 14px;margin:10px 0;white-space:normal}
+.explain.off{border-color:color-mix(in srgb,var(--gold) 60%,var(--line))}
+.ex-h{font-family:var(--serif);font-weight:600;letter-spacing:.06em;margin-bottom:6px;display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.explain p{margin:6px 0;font-size:14px;line-height:1.85}
+.explain a{color:var(--blue)}
+.ex-list{margin-top:8px}
+.ex-g{margin:10px 0}
+.ex-c{font-size:12px;font-weight:700;color:var(--blue);letter-spacing:.08em;margin-bottom:4px}
+.ex-i{font-size:13px;padding:4px 0;border-bottom:1px dashed var(--line)}
+.ex-i b{display:block;font-weight:700}
+.ex-i span{color:var(--sub)}
+.offbox{border-top:1px solid var(--line);margin-top:12px;padding-top:10px}
 .linkbtn{all:unset;cursor:pointer}
 .linkbtn:focus-visible{outline:2px solid var(--blue);outline-offset:3px}
 @media (prefers-reduced-motion:reduce){.w-orb{animation:none}}
@@ -345,7 +357,7 @@ function prodView(){
     for(const[id,p]of list){const u=usedIn(id);
       h+='<details class="prod"><summary><span><span class="pname">'+esc(p.name)+'</span><br><span class="sub">'+(u.length?esc(u.join('・')):'ルーティン未使用')+'</span></span>'+(p.status==='paused'?'<span class="badge paused">休止中</span>':'')+'</summary><div class="body">'+
         tagsOf(p).map(t=>'<span class="tag'+(t==='retinoid'||t==='acid'||t==='bpo'?' w':'')+'">'+esc(TAGS[t]||t)+'</span>').join('')+(p.sensitive?'<span class="tag w">刺激が強め</span>':'')+
-        (p.memo?'\n'+esc(p.memo):'')+(p.ing?'\n全成分：'+esc(p.ing):'')+
+        (p.memo?'\n'+esc(p.memo):'')+officialHtml(p)+explainHtml(p.ing,p.cat)+(p.ing?'<details><summary class="sub">全成分を見る</summary><div class="sub">'+esc(p.ing)+'</div></details>':'')+
         '<div class="row"><button class="btn sm" data-act="editp" data-id="'+id+'">編集</button>'+(p.status==='active'?'<button class="btn sm" data-act="pstat" data-id="'+id+'" data-s="paused">休止する</button>':'<button class="btn sm" data-act="pstat" data-id="'+id+'" data-s="active">再開する</button>')+'<button class="btn sm danger" data-act="pstat" data-id="'+id+'" data-s="removed">削除</button></div></div></details>';}
   }
   if(!ps.length)h+='<div class="card"><div class="sub">まだ製品がありません。「製品を追加」から登録してください。</div></div>';
@@ -356,6 +368,9 @@ function editForm(){
   let h='<h2 style="margin:8px 0 6px">'+(n.id?'製品を編集':'製品を追加')+'</h2><div class="card">'+ocrBox()+
     '<label>製品名<input type="text" id="np-name" value="'+esc(n.name)+'"></label><label>種類<select id="np-cat">'+CATS.map(c=>'<option'+(c===n.cat?' selected':'')+'>'+c+'</option>').join('')+'</select></label>'+
     '<label>全成分（任意）<textarea class="f" id="np-ing" rows="4" placeholder="パッケージの全成分を入れると、成分の重なりをチェックできます">'+esc(n.ing)+'</textarea></label>'+
+    explainHtml(n.ing,n.cat)+
+    '<div class="offbox"><div class="label" style="margin-top:0">公式の情報（任意）</div><div class="sub">メーカー公式サイトで製品説明・全成分を確認して入れておくと、成分からの推定と分けて表示されます。</div><div class="row"><button class="btn sm" data-act="osearch">公式情報を調べる</button></div>'+
+    '<label>公式の説明<textarea class="f" id="np-off" rows="3" placeholder="公式サイトの製品説明を要約して入力">'+esc(n.official||'')+'</textarea></label><label>公式ページのURL<input type="text" id="np-url" inputmode="url" placeholder="https://" value="'+esc(n.officialUrl||'')+'"></label></div>'+
     '<div class="label">成分の目印</div><div class="sub">全成分から自動で付きます。足りないものはタップで追加できます。</div><div class="chips">'+Object.entries(TAGS).map(([k,v])=>{const on=auto.includes(k)||n.manualTags.includes(k);return'<button class="chip" data-act="mtag" data-k="'+k+'" aria-pressed="'+on+'" '+(auto.includes(k)?'disabled title="全成分から自動"':'')+'>'+esc(v)+(auto.includes(k)?'<small>自動</small>':'')+'</button>'}).join('')+'</div>'+
     '<div class="chips"><button class="chip" data-act="sensp" aria-pressed="'+!!n.sensitive+'">刺激が強め<small>敏感な日は休む候補</small></button></div>'+
     '<label>メモ（任意）<textarea class="f" id="np-memo" rows="2" placeholder="使い方、使用期限など">'+esc(n.memo)+'</textarea></label>'+
@@ -369,6 +384,226 @@ function settings(){
   '<div class="card"><h3>トップページ</h3><div class="sub">アプリ名をタップしても開けます。</div><div class="row"><button class="btn" data-act="top">トップページを見る</button></div></div>'+
   '<div class="card"><h3>やり直す</h3><div class="sub">製品・ルーティン・チェック記録・メモをすべて消します。</div><div class="row"><button class="btn danger" data-act="reset">すべて消す</button></div></div>'+
   '<p class="disc">成分の目印と注意表示は、全成分の文字から機械的に判定した目安です。医療的な判断ではありません。肌トラブルがあるときや医薬品については、医師・薬剤師に相談してください。写真の読み取りは端末内で行い、写真やデータを外部に送信しません。</p>';
+}
+
+/* ---------- 成分の説明（全成分からの推定） ---------- */
+const XCAT={
+ base:'ベース',moist:'保湿',emol:'油分・保護',barrier:'バリア',calm:'肌荒れ防止・整肌',bright:'くすみ・透明感ケア',firm:'ハリ・エイジングケア',
+ exfo:'角質ケア',sebum:'皮脂・毛穴ケア',clean:'洗浄',uv:'紫外線防止',anti:'抗酸化',pres:'防腐・品質保持',scent:'香り',cool:'清涼・溶剤',feel:'使用感・乳化・安定化',color:'着色',plant:'植物エキス'
+};
+const XDICT_SRC=`水|精製水=base=製品の土台になる溶剤
+濃グリセリン=moist=水分を抱えるしっとり系の保湿成分
+天然ビタミンE=anti=ビタミンE。抗酸化・品質保持
+グリセリン=moist=水分を抱えるしっとり系の保湿成分
+BG|1,3-ブチレングリコール=moist=さっぱり系の保湿成分。日本で広く使われるベース成分
+DPG|ジプロピレングリコール=moist=保湿・使用感を整える成分
+ジグリセリン=moist=しっとり感のある保湿成分
+プロパンジオール=moist=さっぱり系の保湿成分
+ペンチレングリコール=moist=保湿成分。品質保持を助ける働きも
+1,2-ヘキサンジオール=moist=保湿成分。品質保持を助ける働きも
+カプリリルグリコール=moist=保湿成分。品質保持を助ける働きも
+エチルヘキシルグリセリン=pres=品質保持を助ける成分
+ソルビトール=moist=保湿成分
+キシリトール=moist=保湿成分
+トレハロース=moist=水分を保つ糖類の保湿成分
+グリコシルトレハロース=moist=保湿成分
+加水分解水添デンプン=moist=保湿成分
+ベタイン=moist=肌なじみのよい保湿成分
+PCA-Na=moist=肌の天然保湿因子（NMF）に含まれる保湿成分
+乳酸Na=moist=NMFに含まれる保湿成分。pH調整にも
+尿素=moist=保湿成分。角質をやわらげる働きも
+ヒアルロン酸Na=moist=高い保水力をもつ保湿成分
+加水分解ヒアルロン酸=moist=低分子化したヒアルロン酸。保湿成分
+アセチルヒアルロン酸Na=moist=ヒアルロン酸の誘導体。保湿成分
+ヒアルロン酸クロスポリマーNa=moist=ヒアルロン酸由来の保湿成分
+加水分解コラーゲン=moist=保湿成分
+水溶性コラーゲン=moist=保湿成分
+サクシノイルアテロコラーゲン=moist=保湿成分
+エクトイン=moist=保湿成分。乾燥などから肌を守る目的で配合
+セリン|グリシン|アラニン|プロリン|トレオニン|グルタミン酸|アスパラギン酸|リシンHCl|ヒスチジンHCl|バリン|ロイシン|イソロイシン|フェニルアラニン|チロシン=moist=アミノ酸（NMFの成分）の保湿成分
+アルギニン=moist=アミノ酸の保湿成分。pH調整にも
+パンテノール=calm=ビタミンB5の仲間。保湿と肌荒れ防止
+セラミドNP|セラミドAP|セラミドEOP|セラミドNG|セラミドAG|セラミドNS|セラミドEOS=barrier=ヒト型セラミド。肌のバリア機能を支える保湿成分
+セチルPGヒドロキシエチルパルミタミド=barrier=疑似セラミド。バリア機能を補う保湿成分
+コレステロール=barrier=セラミドと一緒に肌のバリアを支える脂質
+フィトステロールズ=barrier=植物由来のステロール。バリアを支える脂質
+スクワラン=emol=肌なじみのよい軽い油。うるおいを閉じ込める
+ワセリン=emol=肌表面に膜をつくり乾燥から守る油
+ミネラルオイル=emol=肌表面を覆って乾燥を防ぐ油
+シア脂=emol=シアの実の油脂。乾燥から肌を守る
+ホホバ種子油=emol=肌なじみのよい植物油
+オリーブ果実油=emol=植物油。うるおいを保つ
+マカデミア種子油=emol=植物油。うるおいを保つ
+アルガニアスピノサ核油=emol=アルガンオイル。うるおいを保つ
+トリエチルヘキサノイン=emol=軽い使用感の油
+エチルヘキサン酸セチル=emol=軽い使用感の油
+トリ(カプリル酸/カプリン酸)グリセリル=emol=さらっとした油
+水添ポリイソブテン=emol=うるおいを保つ油
+水添ポリデセン=emol=うるおいを保つ油
+ミリスチン酸イソプロピル=emol=さらっとした油
+パルミチン酸エチルヘキシル=emol=さらっとした油
+ジメチコン=feel=シリコーン。なめらかな使用感と保護膜
+シクロペンタシロキサン=feel=揮発性シリコーン。軽い使用感
+グリチルリチン酸2K|グリチルリチン酸ジカリウム=calm=カンゾウ由来。肌荒れを防ぐ代表的な成分（医薬部外品では有効成分）
+グリチルレチン酸ステアリル=calm=カンゾウ由来。肌荒れを防ぐ成分
+アラントイン=calm=肌荒れを防ぎ、すこやかに保つ成分
+ツボクサエキス|ツボクサ葉エキス=calm=シカ（ツボクサ）。肌を整え、すこやかに保つ
+マデカッソシド|アシアチコシド|アシアチン酸|マデカシン酸=calm=ツボクサ（シカ）の主要成分。肌を整える
+ビサボロール=calm=カモミール由来。肌を整える
+グアイアズレン|グアイアズレンスルホン酸Na=calm=カモミール由来の青い成分。肌荒れを防ぐ
+β-グルカン=calm=保湿・肌を整える成分
+カンゾウ根エキス=calm=肌を整える植物エキス
+ナイアシンアミド=bright=ビタミンB3。キメ・ハリ・透明感ケアなどに幅広く使われる（医薬部外品では美白・シワ改善の有効成分として使われるものも）
+アルブチン=bright=メラニン生成を抑える目的で配合される成分（医薬部外品の美白有効成分）
+α-アルブチン=bright=アルブチンの仲間。くすみ・透明感ケアの目的で配合
+トラネキサム酸=bright=肌荒れ防止・美白の有効成分として使われる（医薬部外品）
+3-O-エチルアスコルビン酸=bright=ビタミンC誘導体。透明感・キメのケア
+アスコルビルグルコシド=bright=ビタミンC誘導体。透明感のケア
+リン酸アスコルビルMg|アスコルビルリン酸Na=bright=ビタミンC誘導体。透明感・皮脂のケア
+テトラヘキシルデカン酸アスコルビル=bright=油溶性のビタミンC誘導体
+パルミチン酸アスコルビルリン酸3Na=bright=ビタミンC誘導体
+アスコルビン酸=bright=ビタミンC。透明感・ハリのケア。酸化しやすい
+コウジ酸=bright=美白の有効成分として使われる（医薬部外品）
+4-メトキシサリチル酸K=bright=4MSK。美白の有効成分（医薬部外品）
+グルタチオン=bright=透明感・抗酸化の目的で配合される成分
+ハイドロキノン=bright=強い美白作用で知られる成分。刺激が出ることも
+レチノール=firm=ビタミンA。ハリ・キメのケア。乾燥や赤みが出ることもある
+パルミチン酸レチノール|酢酸レチノール=firm=ビタミンA誘導体。ハリ・キメのケア
+レチナール=firm=ビタミンAの仲間。ハリ・キメのケア。刺激が出ることも
+ヒドロキシピナコロンレチノアート=firm=ビタミンA誘導体。ハリ・キメのケア
+バクチオール=firm=植物由来。レチノールに似た目的で使われるが、ビタミンA系ではない
+アデノシン=firm=ハリ・シワ対策の目的で配合される成分
+sh-オリゴペプチド-1|ヒトオリゴペプチド-1=firm=EGFと呼ばれる成長因子系ペプチド。ハリ・キメのケア
+sh-ポリペプチド-1=firm=FGFと呼ばれる成長因子系ペプチド
+ユビキノン=anti=コエンザイムQ10。抗酸化
+フラーレン=anti=抗酸化成分
+アスタキサンチン=anti=赤い色の抗酸化成分
+フェルラ酸=anti=抗酸化成分
+レスベラトロール=anti=抗酸化成分
+エルゴチオネイン=anti=抗酸化成分
+トコフェロール|酢酸トコフェロール=anti=ビタミンE。抗酸化・品質保持
+BHT=anti=製品の酸化を防ぐ成分
+ニコチンアミドモノヌクレオチド=firm=NMN。エイジングケアの目的で配合
+グリコール酸=exfo=AHA（フルーツ酸）。古い角質をやわらげる。刺激が出ることも
+乳酸=exfo=AHA。角質ケア・pH調整
+サリチル酸=exfo=BHA。毛穴・角質ケア。刺激が出ることも
+マンデル酸=exfo=AHA。比較的マイルドな角質ケア
+グルコノラクトン|ラクトビオン酸=exfo=PHA。マイルドな角質ケア
+リンゴ酸=exfo=AHA。角質ケア・pH調整
+パパイン|プロテアーゼ=exfo=酵素。古い角質や汚れを分解する
+グリシルグリシン=sebum=キメを整え、毛穴を目立ちにくくする目的で配合
+カオリン|ベントナイト|モンモリロナイト|炭=sebum=クレイ・炭。皮脂や汚れを吸着する
+ピリドキシンHCl=sebum=ビタミンB6。皮脂バランスのケア
+PCA亜鉛=sebum=皮脂のケアの目的で配合
+アゼライン酸=sebum=皮脂・毛穴のケアの目的で配合
+ラウレス硫酸Na|ラウリル硫酸Na=clean=洗浄力の高い洗浄成分
+ココイルグルタミン酸Na|ココイルグルタミン酸TEA|ココイルグルタミン酸K=clean=アミノ酸系のマイルドな洗浄成分
+ラウロイルメチルタウリンNa|ココイルメチルタウリンNa=clean=タウリン系のマイルドな洗浄成分
+コカミドプロピルベタイン|ラウラミドプロピルベタイン|ココアンホ酢酸Na=clean=泡立ちを助けるマイルドな洗浄成分
+デシルグルコシド|ラウリルグルコシド|ココグルコシド=clean=糖系のマイルドな洗浄成分
+ラウリン酸|ミリスチン酸|パルミチン酸|ステアリン酸=clean=脂肪酸。水酸化Kなどと合わせて石けん（洗浄成分）になる
+石ケン素地|カリ石ケン素地=clean=石けん。洗浄成分
+水酸化K|水酸化Na=feel=pH調整。脂肪酸と合わせて石けんをつくる
+メトキシケイヒ酸エチルヘキシル=uv=紫外線吸収剤（UVB）
+t-ブチルメトキシジベンゾイルメタン=uv=紫外線吸収剤（UVA）
+ジエチルアミノヒドロキシベンゾイル安息香酸ヘキシル=uv=紫外線吸収剤（UVA）
+ビスエチルヘキシルオキシフェノールメトキシフェニルトリアジン=uv=紫外線吸収剤（UVA・UVB）
+エチルヘキシルトリアゾン|オクトクリレン|ホモサレート|サリチル酸エチルヘキシル|ポリシリコーン-15=uv=紫外線吸収剤
+酸化亜鉛=uv=紫外線散乱剤（ノンケミカル系）
+酸化チタン=uv=紫外線散乱剤。白さ・色の調整にも
+フェノキシエタノール=pres=防腐剤。製品の品質を保つ
+メチルパラベン|エチルパラベン|プロピルパラベン|ブチルパラベン=pres=パラベン（防腐剤）。製品の品質を保つ
+安息香酸Na|ソルビン酸K|デヒドロ酢酸Na|クロルフェネシン=pres=防腐剤。製品の品質を保つ
+香料=scent=香りづけ。香りに敏感な人は注意
+リナロール|リモネン|シトロネロール|ゲラニオール|オイゲノール|シトラール|ファルネソール|クマリン=scent=香りの成分（精油などに含まれる）
+エタノール=cool=アルコール。さっぱり感・清涼感。乾燥や刺激を感じる人も
+メントール=cool=清涼感を与える成分
+カルボマー|キサンタンガム|セルロースガム|ヒドロキシエチルセルロース|ポリアクリル酸Na|アガロース|寒天=feel=とろみをつけ、使用感を整える
+ポリソルベート60|ポリソルベート80|ステアリン酸グリセリル|ステアリン酸PEG-100|水添レシチン|レシチン=feel=乳化剤。水と油をなじませる
+セテアリルアルコール|セタノール|ベヘニルアルコール|ステアリルアルコール=feel=高級アルコール。クリームの硬さ・安定性を整える（エタノールとは別物）
+EDTA-2Na|EDTA-4Na|エチドロン酸|エチドロン酸4Na|フィチン酸=feel=品質を安定させる成分
+クエン酸|クエン酸Na|トロメタミン|TEA=feel=pH調整
+酸化鉄|マイカ|合成金雲母|タルク|シリカ=feel=色・質感の調整
+コラーゲン=moist=保湿成分
+DNA-Na|サケ精巣DNA-Na=firm=PDRN（DNA由来成分）。保湿・肌を整える目的で配合`;
+const XDICT=new Map();
+XDICT_SRC.split('\n').forEach(l=>{const[n,c,r]=l.split('=');n.split('|').forEach(k=>XDICT.set(k.normalize('NFKC'),{c,r,n:k}))});
+const XPAT=[
+ [/^セラミド/,'barrier','セラミドの仲間。バリア機能を支える保湿成分'],
+ [/(花|葉|果皮|根|木|樹皮|花弁)油$/,'scent','精油。香りづけ（香りに敏感な人は注意）'],
+ [/(種子|果実|核|胚芽)油$|脂$/,'emol','植物油・油脂。うるおいを保つ'],
+ [/(ヌクレオチド|PDRN)/,'firm','PDRN（DNA由来成分）。保湿・肌を整える目的で配合'],
+ [/ペプチド/,'firm','ペプチド。ハリ・キメのケアの目的で配合されることが多い'],
+ [/アスコルビ/,'bright','ビタミンC誘導体。透明感のケア'],
+ [/レチノ|レチナ/,'firm','ビタミンA系。ハリ・キメのケア。乾燥や赤みが出ることも'],
+ [/コラーゲン/,'moist','コラーゲン由来の保湿成分'],
+ [/ヒアルロン/,'moist','ヒアルロン酸由来の保湿成分'],
+ [/(発酵|培養).*(エキス|液|物)$|エキス$/,'plant','植物などのエキス。保湿・肌を整える目的が多い'],
+ [/(クロスポリマー|コポリマー|ポリマー)$/,'feel','使用感・とろみ・膜をつくる成分'],
+ [/^(PEG|PPG)-/,'feel','乳化・使用感を整える成分'],
+ [/パラベン$/,'pres','パラベン（防腐剤）'],
+ [/^(赤|黄|青|緑|橙)\d+/,'color','タール色素（着色）'],
+ [/シロキサン|メチコン|ジメチコン/,'feel','シリコーン。なめらかな使用感'],
+];
+function splitIngredients(t){
+  return(t||'').normalize('NFKC').replace(/(全成分|有効成分|その他の成分|成分)\s*[:：】\]]?/g,'、').split(/[、\n]|,(?!\d)/).map(x=>x.replace(/[*※＊]+/g,'').replace(/\s+/g,'').replace(/[【】\[\]「」]/g,'').replace(/\(\d+\)$/,'').trim()).filter(x=>x&&x.length<60);
+}
+function lookupIng(name){
+  const d=XDICT.get(name);if(d)return d;
+  for(const[re,c,r]of XPAT)if(re.test(name))return{c,r,n:name,pat:true};
+  return null;
+}
+function explainIngredients(ingText,cat){
+  const raw=ingText||'';if(!raw.trim())return null;
+  const list=splitIngredients(raw);if(!list.length)return null;
+  const quasi=/有効成分/.test(raw);
+  const items=list.map((n,i)=>({n,i,d:lookupIng(n)}));
+  const known=items.filter(x=>x.d),unknown=items.filter(x=>!x.d);
+  const front=items.filter(x=>x.n!=='水').slice(0,4);
+  const fc=front.map(x=>x.d&&x.d.c);
+  const cnt=c=>known.filter(x=>x.d.c===c).length;
+  const has=c=>cnt(c)>0;
+  const tags=autoTags(raw);
+  // ベースの性格
+  let base='';
+  if(fc.filter(c=>c==='clean').length>=1&&(cat||'').includes('洗'))base='洗浄成分がベースの洗顔料です';
+  else if(fc.filter(c=>c==='uv').length>=1)base='紫外線防止成分が前の方にあり、日焼け止めとしての働きが中心です';
+  else if(fc.filter(c=>c==='emol').length>=2)base='油分が多めで、肌を覆ってうるおいを守るタイプです';
+  else if(fc.filter(c=>c==='moist').length>=2)base='水分を抱える保湿成分がベースのみずみずしいタイプです';
+  else if(fc.some(c=>c==='emol')&&fc.some(c=>c==='moist'))base='保湿成分と油分の両方がベースです';
+  const sent=[];
+  if(quasi){const m=raw.normalize('NFKC').match(/有効成分\s*[:：】\]]?([\s\S]*?)(その他の成分|$)/);const act=m?splitIngredients(m[1]):[];
+    sent.push((cat?cat+'（医薬部外品）。':'医薬部外品。')+(act.length?'有効成分は「'+act.join('、')+'」です。':''));}
+  else sent.push((cat?cat+'。':'')+'配合量の多い前半には「'+front.map(x=>x.n).join('、')+'」'+(base?'があり、'+base+'。':'があります。'));
+  if(front.some(x=>x.n==='エタノール'))sent.push('エタノールが前の方にあるため、さっぱりした使い心地のことが多く、乾燥や刺激を感じる人もいます。');
+  const featCats=['barrier','calm','bright','firm','exfo','sebum','anti'];
+  const feat=known.filter(x=>featCats.includes(x.d.c)&&!x.d.pat).slice(0,7);
+  if(feat.length)sent.push('特徴的な成分は、'+feat.map(x=>x.n+'（'+XCAT[x.d.c]+'）').join('、')+'です。');
+  const caut=[];
+  if(tags.includes('retinoid'))caut.push('ビタミンA系を含むため、乾燥・赤みが出ることがあり、他のビタミンA系や酸との重ね使いに注意');
+  if(tags.includes('acid'))caut.push('角質ケアの酸を含むため、刺激や乾燥に注意');
+  if(tags.includes('fragrance'))caut.push('香料・精油系の成分を含む');
+  if(caut.length)sent.push(caut.join('。')+'。');
+  if(quasi)sent.push('「有効成分」は効能・効果が認められた成分です。医薬部外品の「その他の成分」は配合量の順とは限りません。');
+  // カテゴリ別まとめ
+  const groups={};known.forEach(x=>{(groups[x.d.c]??=[]).push(x)});
+  const order=['bright','firm','calm','barrier','exfo','sebum','moist','emol','anti','uv','clean','plant','scent','cool','pres','feel','color','base'];
+  return{sent,groups,order,unknown:unknown.map(x=>x.n),total:list.length,quasi};
+}
+function explainHtml(ing,cat){
+  const e=explainIngredients(ing,cat);if(!e)return'';
+  let h='<div class="explain"><div class="ex-h">成分からの説明<span class="tag">全成分からの推定</span></div>';
+  h+=e.sent.map(s=>'<p>'+esc(s)+'</p>').join('');
+  h+='<details><summary class="sub">成分ごとの役割を見る（'+e.total+'種）</summary><div class="ex-list">';
+  for(const c of e.order){const g=e.groups[c];if(!g)continue;
+    h+='<div class="ex-g"><div class="ex-c">'+esc(XCAT[c])+'</div>'+g.map(x=>'<div class="ex-i"><b>'+esc(x.n)+'</b><span>'+esc(x.d.r)+'</span></div>').join('')+'</div>'}
+  if(e.unknown.length)h+='<div class="ex-g"><div class="ex-c">辞書にない成分</div><div class="ex-i"><span>'+esc(e.unknown.join('、'))+'</span></div></div>';
+  h+='</div></details><p class="disc">'+(e.quasi?'医薬部外品は成分の並びが配合量の順とは限りません。':'化粧品の全成分は配合量の多い順に書かれています（1%以下の成分と着色剤は順不同）。')+'この説明は成分名から機械的にまとめた目安で、メーカー公式の情報ではありません。</p></div>';
+  return h;
+}
+function officialHtml(p){
+  if(!p.official&&!p.officialUrl)return'';
+  return'<div class="explain off"><div class="ex-h">公式の情報<span class="tag">自分で確認して入力</span></div>'+(p.official?'<p>'+esc(p.official)+'</p>':'')+(p.officialUrl?'<p><a href="'+esc(p.officialUrl)+'" target="_blank" rel="noopener">公式ページを開く</a></p>':'')+'</div>';
 }
 
 /* ---------- 写真から読み取り ---------- */
@@ -472,7 +707,7 @@ function paintTimer(k){const o=document.getElementById('t-'+k);if(!o)return;cons
 setInterval(()=>{for(const k in timers)if(timers[k].run)paintTimer(k)},500);
 
 /* ---------- 操作 ---------- */
-function readForm(){if(!view.np)return;const g=id=>document.getElementById(id);if(g('np-name'))view.np.name=g('np-name').value;if(g('np-cat'))view.np.cat=g('np-cat').value;if(g('np-ing'))view.np.ing=g('np-ing').value;if(g('np-memo'))view.np.memo=g('np-memo').value}
+function readForm(){if(!view.np)return;const g=id=>document.getElementById(id);if(g('np-name'))view.np.name=g('np-name').value;if(g('np-cat'))view.np.cat=g('np-cat').value;if(g('np-ing'))view.np.ing=g('np-ing').value;if(g('np-memo'))view.np.memo=g('np-memo').value;if(g('np-off'))view.np.official=g('np-off').value;if(g('np-url'))view.np.officialUrl=g('np-url').value}
 document.addEventListener('click',e=>{
   const b=e.target.closest('[data-act],[data-tab]');if(!b)return;
   if(b.dataset.tab){readForm();view.showTop=false;view.tab=b.dataset.tab;render();scrollTo(0,0);return}
@@ -500,16 +735,17 @@ document.addEventListener('click',e=>{
   case'docopy':{const ds=[...dlg.querySelectorAll('.cp:checked')].map(x=>x.value);if(!ds.length){toast('曜日を選んでください');break}const src=stepsFor(view.wmode,view.wday);for(const d of ds)S.routines[view.wmode][d]=src.map(s=>({...s,id:uid()}));save();dlg.close();render();toast(ds.length+'曜日にコピーしました');break}
   case'dclose':dlg.close();break;
   case'newp':view.np={name:'',cat:'化粧水',ing:'',memo:'',manualTags:[],sensitive:false};view.ocr=null;render();scrollTo(0,0);break;
-  case'editp':{const p=S.products[b.dataset.id];view.np={id:b.dataset.id,name:p.name,cat:p.cat,ing:p.ing||'',memo:p.memo||'',manualTags:[...(p.manualTags||[])],sensitive:!!p.sensitive};view.ocr=null;render();scrollTo(0,0);break}
+  case'editp':{const p=S.products[b.dataset.id];view.np={id:b.dataset.id,name:p.name,cat:p.cat,ing:p.ing||'',memo:p.memo||'',official:p.official||'',officialUrl:p.officialUrl||'',manualTags:[...(p.manualTags||[])],sensitive:!!p.sensitive};view.ocr=null;render();scrollTo(0,0);break}
   case'mtag':{readForm();const k=b.dataset.k,m=view.np.manualTags;m.includes(k)?m.splice(m.indexOf(k),1):m.push(k);render();break}
   case'sensp':readForm();view.np.sensitive=!view.np.sensitive;render();break;
   case'savep':{readForm();const n=view.np;if(!n.name.trim()){toast('製品名を入れてください');break}
     const id=n.id||uid(),old=S.products[id]||{status:'active'};
-    S.products[id]={...old,name:n.name.trim(),cat:n.cat,ing:n.ing.trim(),memo:n.memo.trim(),tags:autoTags(n.ing),manualTags:n.manualTags,sensitive:n.sensitive};
+    S.products[id]={...old,name:n.name.trim(),cat:n.cat,ing:n.ing.trim(),memo:n.memo.trim(),official:(n.official||'').trim(),officialUrl:/^https?:\/\//.test((n.officialUrl||'').trim())?(n.officialUrl||'').trim():'',tags:autoTags(n.ing),manualTags:n.manualTags,sensitive:n.sensitive};
     const t=tagsOf(S.products[id]);view.np=null;view.ocr=null;save();render();
     toast(n.id?'保存しました':'追加しました');
     if(t.includes('retinoid')||t.includes('acid')||t.includes('bpo'))setTimeout(()=>toast('刺激が出やすいとされる成分を含みます。組み合わせ注意を確認してください'),1900);
     break}
+  case'osearch':{readForm();const q=(view.np.name||'').trim();if(!q){toast('先に製品名を入れてください');break}window.open('https://www.google.com/search?q='+encodeURIComponent(q+' 公式 全成分'),'_blank','noopener');break}
   case'cancelp':view.np=null;view.ocr=null;render();break;
   case'pstat':{const p=S.products[b.dataset.id],s=b.dataset.s;if(s==='removed'){if(!confirm(p.name+'を削除しますか？ルーティンからも外れます。'))break;for(const pp of['am','pm'])for(const k in S.routines[pp])S.routines[pp][k]=S.routines[pp][k].filter(x=>x.p!==b.dataset.id);delete S.products[b.dataset.id]}else p.status=s;save();render();toast(s==='active'?'再開しました':s==='paused'?'休止しました':'削除しました');break}
   case'ocrname':{readForm();const l=view.ocr.lines[+b.dataset.i];view.np.name=view.np.name?view.np.name+' '+l:l;render();break}
