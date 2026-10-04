@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<meta name="theme-color" content="#2f6db5">
+<meta name="theme-color" content="#f6f1ea">
 <meta name="description" content="化粧品の登録、曜日ごとの朝・夜ルーティン、成分の重なりチェックができる無料のスキンケア管理アプリ。データは端末内だけに保存。">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-title" content="スキンケア">
@@ -143,6 +143,54 @@ dialog::backdrop{background:rgba(10,25,45,.45)}
 .ocrbox .chips .chip{font-size:13px;text-align:left}
 .ocrbox textarea{font-size:13px}
 @media (prefers-reduced-motion:reduce){*{transition:none!important}}
+
+/* ===== beauty theme ===== */
+:root{
+  --serif:"Hiragino Mincho ProN","Hiragino Mincho Pro","Yu Mincho","YuMincho","Noto Serif JP","Noto Serif CJK JP",serif;
+  --sky:#f6f1ea; --paper:#fffdf9; --ink:#2b2622; --sub:#7d7068; --line:#e7ddd2;
+  --blue:#a5645a; --blue-deep:#7a453e; --tint:#f2e6de; --warn:#9c5532; --warn-bg:#f8eadf; --muted:#bcafa4; --ok:#6f8a6a;
+  --gold:#c9a97c; --bg:var(--sky); --card:var(--paper); --text:var(--ink);
+}
+:root[data-mode="night"]{
+  --bg:#1d191b; --card:#28222a; --text:#f2e9e2; --sub:#bfb0a6; --line:#3c3339;
+  --tint:#3a2f33; --blue:#dcaaa0; --blue-deep:#f1d2c9; --warn:#efb48f; --warn-bg:#3a2c27; --muted:#86797a; --gold:#bfa07a;
+}
+body{letter-spacing:.02em}
+header.top h1{font-family:var(--serif);font-weight:500;font-size:14px;letter-spacing:.28em;color:var(--sub)}
+.dow{font-family:var(--serif);font-weight:500;letter-spacing:0;color:var(--blue-deep)}
+h2,h3,.progress h2{font-family:var(--serif);font-weight:600;letter-spacing:.06em}
+.chip[aria-pressed="true"],:root[data-mode="night"] .chip[aria-pressed="true"]{color:var(--bg)}
+.btn{border-radius:999px;padding:10px 18px;letter-spacing:.06em}
+.btn.primary,:root[data-mode="night"] .btn.primary{background:var(--ink);border-color:var(--ink);color:var(--paper)}
+:root[data-mode="night"] .btn.primary{background:var(--blue-deep);border-color:var(--blue-deep);color:var(--bg)}
+.btn.sm{border-radius:999px}
+ol.steps li,.card,details.prod{border-color:var(--line);box-shadow:0 1px 2px rgba(60,40,30,.04)}
+.bar{height:3px}
+.seg{background:var(--tint)}
+nav.tabs{background:color-mix(in srgb,var(--card) 92%,transparent);backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px)}
+nav.tabs button[aria-current="page"]{color:var(--blue)}
+/* welcome */
+.welcome{position:relative;min-height:calc(100vh - 140px);display:flex;flex-direction:column;justify-content:center;padding:36px 6px 24px;overflow:hidden}
+.w-orb{position:absolute;right:-90px;top:-40px;width:320px;height:320px;border-radius:50%;
+  background:radial-gradient(circle at 35% 35%,#fbe7df 0%,#f1cfc4 38%,#e9d8bf 70%,rgba(233,216,191,0) 72%);filter:blur(2px);opacity:.9;animation:wfloat 9s ease-in-out infinite;pointer-events:none}
+.w-orb::after{content:"";position:absolute;inset:-26px;border-radius:50%;border:1px solid color-mix(in srgb,var(--gold) 55%,transparent)}
+.w-orb::before{content:"";position:absolute;inset:-60px;border-radius:50%;border:1px solid color-mix(in srgb,var(--gold) 25%,transparent)}
+@keyframes wfloat{50%{transform:translateY(12px)}}
+.w-kicker{position:relative;font-family:var(--serif);font-size:12px;letter-spacing:.42em;color:var(--blue);margin:0 0 18px}
+.w-kicker::after{content:"";display:inline-block;width:40px;height:1px;background:var(--gold);vertical-align:middle;margin-left:12px}
+.w-title{position:relative;font-family:var(--serif);font-weight:500;font-size:clamp(30px,8.6vw,42px);line-height:1.45;letter-spacing:.08em;margin:0 0 18px;color:var(--ink)}
+.w-title em{font-style:normal;color:var(--blue)}
+.w-lead{position:relative;font-size:14.5px;line-height:2;color:var(--sub);margin:0 0 28px;max-width:30em}
+.w-actions{position:relative;display:flex;gap:10px;flex-wrap:wrap}
+.w-actions .btn{padding:13px 26px;font-size:15px}
+.w-note{position:relative;font-size:12px;letter-spacing:.12em;color:var(--muted);margin:16px 0 0}
+.w-steps{position:relative;list-style:none;margin:40px 0 0;padding:0;border-top:1px solid var(--line)}
+.w-steps li{display:flex;gap:18px;align-items:baseline;padding:16px 2px;border-bottom:1px solid var(--line)}
+.w-num{font-family:var(--serif);font-size:13px;letter-spacing:.1em;color:var(--gold);flex:none;width:24px}
+.w-steps b{display:block;font-family:var(--serif);font-weight:600;font-size:16px;letter-spacing:.1em;margin-bottom:2px}
+.w-steps span:not(.w-num){font-size:13px;color:var(--sub)}
+nav.tabs[hidden]{display:none}
+@media (prefers-reduced-motion:reduce){.w-orb{animation:none}}
 </style>
 
 </head>
@@ -231,7 +279,9 @@ function render(){
   document.documentElement.dataset.mode=(view.tab==='today'&&view.mode==='pm')?'night':'day';
   document.querySelectorAll('#tabs button').forEach(b=>b.setAttribute('aria-current',b.dataset.tab===view.tab?'page':'false'));
   const app=document.getElementById('app');
-  app.innerHTML='<header class="top"><h1>スキンケア・ノート</h1></header>'+({today,week,prod:prodView,set:settings})[view.tab]();
+  const body=({today,week,prod:prodView,set:settings})[view.tab]();
+  app.innerHTML=(body.startsWith('<section class="welcome"')?'':'<header class="top"><h1>スキンケア・ノート</h1></header>')+body;
+  document.getElementById('tabs').hidden=body.startsWith('<section class="welcome"');
   for(const k in timers)paintTimer(k);
 }
 function today(){
@@ -256,9 +306,15 @@ function today(){
   return h;
 }
 function welcome(){
-  return'<div class="empty"><div class="dow" style="font-size:72px">肌</div><h2>スキンケア・ノート</h2><p class="sub">使っている化粧品を登録して、曜日ごとの朝・夜の手順を作り、毎日チェックするためのアプリです。<br>データはこの端末の中だけに保存されます。</p>'+
-  '<div class="card" style="text-align:left"><ol class="plain"><li>製品のタブで、使っている化粧品を登録（写真から読み取りもできます）</li><li>ルーティンのタブで、曜日ごとの朝・夜の手順を作る</li><li>今日のタブで、毎日チェック</li></ol></div>'+
-  '<div class="row" style="justify-content:center"><button class="btn primary" data-act="start">製品を登録する</button><button class="btn" data-act="sample">サンプルで試す</button></div></div>';
+  return'<section class="welcome"><div class="w-orb" aria-hidden="true"></div>'+
+  '<p class="w-kicker">SKINCARE NOTE</p>'+
+  '<h2 class="w-title">わたしの肌に、<br><em>ちょうどいい</em><br>手順を。</h2>'+
+  '<p class="w-lead">使っている化粧品を登録して、曜日ごとの朝と夜のケアを組み立てる。成分の重なりもそっと知らせてくれる、スキンケアのためのノートです。</p>'+
+  '<div class="w-actions"><button class="btn primary" data-act="start">はじめる</button><button class="btn" data-act="sample">サンプルで試す</button></div>'+
+  '<p class="w-note">ログイン不要 ・ 無料 ・ データはこの端末の中だけ</p>'+
+  '<ol class="w-steps"><li><span class="w-num">01</span><div><b>登録する</b><span>化粧品を、写真から読み取って登録</span></div></li>'+
+  '<li><span class="w-num">02</span><div><b>組み立てる</b><span>曜日ごとに、朝と夜の手順をつくる</span></div></li>'+
+  '<li><span class="w-num">03</span><div><b>続ける</b><span>毎日チェックして、肌のメモを残す</span></div></li></ol></section>';
 }
 function week(){
   const dk=view.wday,period=view.wmode,steps=stepsFor(period,dk);
