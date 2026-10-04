@@ -178,7 +178,7 @@ nav.tabs button[aria-current="page"]{color:var(--blue)}
 @keyframes wfloat{50%{transform:translateY(12px)}}
 .w-kicker{position:relative;font-family:var(--serif);font-size:12px;letter-spacing:.42em;color:var(--blue);margin:0 0 18px}
 .w-kicker::after{content:"";display:inline-block;width:40px;height:1px;background:var(--gold);vertical-align:middle;margin-left:12px}
-.w-title{position:relative;font-family:var(--serif);font-weight:500;font-size:clamp(30px,8.6vw,42px);line-height:1.45;letter-spacing:.08em;margin:0 0 18px;color:var(--ink)}
+.w-title{position:relative;font-family:var(--serif);font-weight:500;font-size:clamp(30px,8.6vw,42px);line-height:1.45;letter-spacing:.08em;margin:0 0 18px;color:var(--text)}
 .w-title em{font-style:normal;color:var(--blue)}
 .w-lead{position:relative;font-size:14.5px;line-height:2;color:var(--sub);margin:0 0 28px;max-width:30em}
 .w-actions{position:relative;display:flex;gap:10px;flex-wrap:wrap}
@@ -283,7 +283,9 @@ function render(){
   const app=document.getElementById('app');
   const body=view.showTop?welcome(true):({today,week,prod:prodView,set:settings})[view.tab]();
   app.innerHTML=(body.startsWith('<section class="welcome"')?'':'<header class="top"><h1><button class="linkbtn" data-act="top" aria-label="トップページを見る">スキンケア・ノート</button></h1></header>')+body;
-  document.getElementById('tabs').hidden=body.startsWith('<section class="welcome"');
+  const isTop=body.startsWith('<section class="welcome"');
+  document.getElementById('tabs').hidden=isTop;
+  if(isTop)document.documentElement.dataset.mode='day';
   for(const k in timers)paintTimer(k);
 }
 function today(){
