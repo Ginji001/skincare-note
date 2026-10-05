@@ -381,6 +381,7 @@ function editForm(){
 function settings(){
   return'<h2 style="margin:8px 0">設定</h2>'+
   '<div class="card"><h3>バックアップ</h3><div class="sub">データはこの端末の中だけに保存されます。機種変更の前や、ときどき書き出しておくと安心です。</div><div class="row"><button class="btn" data-act="export">バックアップを書き出す</button><label class="btn" for="file" role="button">バックアップから戻す</label></div></div>'+
+  '<div class="card"><h3>データの読み込み</h3><div class="sub">読み込み用のリンクやコードを貼り付けて、データを入れられます。</div><textarea class="f" id="impcode" rows="3" placeholder="読み込み用リンク（…#import=…）またはコード"></textarea><div class="row"><button class="btn" data-act="impcode">読み込む</button></div></div>'+
   '<div class="card"><h3>トップページ</h3><div class="sub">アプリ名をタップしても開けます。</div><div class="row"><button class="btn" data-act="top">トップページを見る</button></div></div>'+
   '<div class="card"><h3>やり直す</h3><div class="sub">製品・ルーティン・チェック記録・メモをすべて消します。</div><div class="row"><button class="btn danger" data-act="reset">すべて消す</button></div></div>'+
   '<p class="disc">成分の目印と注意表示は、全成分の文字から機械的に判定した目安です。医療的な判断ではありません。肌トラブルがあるときや医薬品については、医師・薬剤師に相談してください。写真の読み取りは端末内で行い、写真やデータを外部に送信しません。</p>';
@@ -702,6 +703,26 @@ function sample(){
 function exportAll(){const blob=new Blob([JSON.stringify(S,null,1)],{type:'application/json'});const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='skincare-note-'+todayKey()+'.json';document.body.appendChild(a);a.click();setTimeout(()=>{URL.revokeObjectURL(a.href);a.remove()},500)}
 document.getElementById('file').addEventListener('change',e=>{const f=e.target.files&&e.target.files[0];if(!f)return;const r=new FileReader();r.onload=()=>{try{const o=JSON.parse(String(r.result).replace(/^\uFEFF/,''));if(!o||!o.products||!o.routines)throw new Error('このアプリのバックアップではありません');if(!confirm('今のデータをバックアップの内容で置き換えますか？'))return;S=Object.assign(blank(),o);save();render();toast('戻しました')}catch(err){alert('読み込めませんでした：'+err.message)}e.target.value=''};r.readAsText(f,'utf-8')});
 
+/* ---------- 読み込みリンク・コード ---------- */
+function b64urlToBytes(s){s=s.replace(/\s+/g,'').replace(/-/g,'+').replace(/_/g,'/');while(s.length%4)s+='=';const bin=atob(s);const u=new Uint8Array(bin.length);for(let i=0;i<bin.length;i++)u[i]=bin.charCodeAt(i);return u}
+async function codeToText(code){const b=b64urlToBytes(code);if(b[0]===0x1f&&b[1]===0x8b){return await new Response(new Blob([b]).stream().pipeThrough(new DecompressionStream('gzip'))).text()}return new TextDecoder().decode(b)}
+function extractCode(t){t=String(t||'').trim();const i=t.indexOf('#import=');return i>=0?t.slice(i+8):t}
+const TRANSFER=()=>new URL('__transfer.json',location.href).href;
+async function importJsonText(text,opts={}){
+  let o=JSON.parse(String(text).replace(/^\uFEFF/,''));
+  if(typeof isMine==='function'&&isMine(o))o=convertMine(o.data&&o.data.products?o.data:o,o.data?o:null);
+  if(!o||!o.products||!o.routines)throw new Error('データの形式が違います');
+  if(Object.keys(S.products).length&&!opts.silent&&!confirm('今のデータを、読み込むデータで置き換えますか？'))return false;
+  S=Object.assign(blank(),o);S.started=true;save();
+  if(!opts.fromCache){try{const c=await caches.open('skn-transfer');await c.put(TRANSFER(),new Response(String(text)))}catch(e){}}
+  view.showTop=false;view.tab='today';render();toast('データを読み込みました');return true;
+}
+async function importCode(raw){try{return await importJsonText(await codeToText(extractCode(raw)))}catch(e){alert('読み込めませんでした：'+e.message);return false}}
+async function bootImport(){
+  if(location.hash.startsWith('#import=')){const h=location.hash;history.replaceState(null,'',location.pathname+location.search);await importCode(h);return}
+  if(!Object.keys(S.products).length&&!S.started){try{const c=await caches.open('skn-transfer');const r=await c.match(TRANSFER());if(r){await importJsonText(await r.text(),{silent:true,fromCache:true});await c.delete(TRANSFER())}}catch(e){}}
+}
+
 /* ---------- タイマー ---------- */
 function paintTimer(k){const o=document.getElementById('t-'+k);if(!o)return;const t=timers[k];const s=Math.floor(((t.run?Date.now()-t.start:0)+t.acc)/1000);o.textContent=Math.floor(s/60)+':'+String(s%60).padStart(2,'0')}
 setInterval(()=>{for(const k in timers)if(timers[k].run)paintTimer(k)},500);
@@ -751,13 +772,14 @@ document.addEventListener('click',e=>{
   case'ocrname':{readForm();const l=view.ocr.lines[+b.dataset.i];view.np.name=view.np.name?view.np.name+' '+l:l;render();break}
   case'ocring':{readForm();const t=view.ocr.ing||view.ocr.text.replace(/\n+/g,'');view.np.ing=view.np.ing?view.np.ing+'、'+t:t;render();break}
   case'ocrclear':readForm();view.ocr=null;render();break;
+  case'impcode':importCode(document.getElementById('impcode').value);break;
   case'export':exportAll();break;
-  case'reset':if(!confirm('すべてのデータを消しますか？元に戻せません。'))break;S=blank();save();view.tab='today';render();break;
+  case'reset':if(!confirm('すべてのデータを消しますか？元に戻せません。'))break;S=blank();save();try{caches.open('skn-transfer').then(c=>c.delete(TRANSFER()))}catch(e){}view.tab='today';render();break;
   }
 });
 document.addEventListener('input',e=>{if(e.target.dataset.act==='memo'){S.memo[view.date]=e.target.value;save()}if(e.target.id==='np-ing'&&view.np){view.np.ing=e.target.value;clearTimeout(window._exT);window._exT=setTimeout(()=>{const x=document.getElementById('np-ex');if(x)x.innerHTML=explainHtml(view.np.ing,view.np.cat)},500)}});
 document.addEventListener('change',e=>{if(e.target.id==='np-cat'&&view.np){readForm();render()}});
-render();
+render();bootImport();
 if('serviceWorker'in navigator)addEventListener('load',()=>navigator.serviceWorker.register('sw.js').catch(()=>{}));
 </script>
 </body>
