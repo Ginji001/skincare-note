@@ -713,7 +713,7 @@ async function importJsonText(text,opts={}){
   if(typeof isMine==='function'&&isMine(o))o=convertMine(o.data&&o.data.products?o.data:o,o.data?o:null);
   if(!o||!o.products||!o.routines)throw new Error('データの形式が違います');
   if(Object.keys(S.products).length&&!opts.silent&&!confirm('今のデータを、読み込むデータで置き換えますか？'))return false;
-  S=Object.assign(blank(),o);S.started=true;save();
+  const old=S;S=Object.assign(blank(),o);if(old&&old.routines){for(const pp of['am','pm'])for(const dk of Object.keys(S.routines[pp]||{})){const ol=(((old.routines||{})[pp]||{})[dk]||[]).slice();for(const it of S.routines[pp][dk]||[]){const i=ol.findIndex(x=>x&&x.p&&x.p===it.p);if(i>=0){it.id=ol[i].id;ol.splice(i,1)}}}}if(old){if(!Object.keys(S.log||{}).length)S.log=old.log||{};if(!Object.keys(S.memo||{}).length)S.memo=old.memo||{}}S.started=true;save();
   if(!opts.fromCache){try{const c=await caches.open('skn-transfer');await c.put(TRANSFER(),new Response(String(text)))}catch(e){}}
   view.showTop=false;view.tab='today';render();toast('データを読み込みました');return true;
 }
