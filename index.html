@@ -240,7 +240,8 @@ const KW={
 };
 function blank(){return{ver:1,products:{},routines:{am:{},pm:{}},flags:{},log:{},memo:{},started:false}}
 function load(){try{const s=JSON.parse(localStorage.getItem(LS));if(s&&s.products)return s}catch(e){}return blank()}
-function save(){try{localStorage.setItem(LS,JSON.stringify(S))}catch(e){toast('保存できませんでした（容量や設定を確認してください）')}}
+function markUsed(){try{for(const pp of['am','pm'])for(const l of Object.values((S.routines||{})[pp]||{}))for(const x of l||[])if(x&&x.p&&S.products[x.p])S.products[x.p].used=true}catch(e){}}
+function save(){markUsed();try{localStorage.setItem(LS,JSON.stringify(S))}catch(e){toast('保存できませんでした（容量や設定を確認してください）')}}
 let S=load();
 function todayKey(d=new Date()){return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0')}
 function parse(k){const[a,b,c]=k.split('-').map(Number);return new Date(a,b-1,c)}
@@ -279,7 +280,7 @@ function resolve(date,period){
   const dk=DK[parse(date).getDay()],sens=S.flags.sensitive===date,out=[],hidden=[];
   for(const st of stepsFor(period,dk)){
     if(!st.p){out.push({key:st.id,label:st.label,state:'normal',tags:[],timer:st.timer});continue}
-    const p=S.products[st.p];if(!p||p.status==='removed')continue;
+    const p=S.products[st.p];if(!p||p.status==='removed'||p.status==='ended')continue;
     if(p.status==='paused'){hidden.push(p.name);continue}
     const it={key:st.id,label:p.name,state:'normal',tags:[],sub:st.note||''};
     if(sens&&p.sensitive){it.state='optional';it.tags.push(['敏感な日：休む候補',1])}
@@ -350,19 +351,28 @@ function usedIn(id){const r=[];for(const pp of['am','pm'])for(const i of ORDER)i
 function prodView(){
   if(view.np)return editForm();
   const ps=Object.entries(S.products).filter(([,p])=>p.status!=='removed');
-  let h='<h2 style="margin:8px 0 2px">製品</h2><div class="sub">使用中 '+ps.filter(([,p])=>p.status==='active').length+'品／休止中 '+ps.filter(([,p])=>p.status==='paused').length+'品</div><div class="row"><button class="btn primary" data-act="newp">製品を追加</button></div>';
+  let dirty=false;for(const[id,p]of ps)if(!p.used&&usedIn(id).length){p.used=true;dirty=true}if(dirty)save();
+  const cur=ps.filter(([,p])=>p.status!=='ended'),ended=ps.filter(([,p])=>p.status==='ended');
+  let h='<h2 style="margin:8px 0 2px">製品</h2><div class="sub">使用中 '+ps.filter(([,p])=>p.status==='active').length+'品／休止中 '+ps.filter(([,p])=>p.status==='paused').length+'品／使用終了 '+ended.length+'品</div><div class="row"><button class="btn primary" data-act="newp">製品を追加</button></div>';
+  const item=(id,p)=>{const u=usedIn(id);
+    return'<details class="prod"><summary><span><span class="pname">'+esc(p.name)+'</span><br><span class="sub">'+(p.status==='ended'?'使用終了':u.length?esc(u.join('・')):'ルーティン未使用')+'</span></span>'+(p.status==='paused'?'<span class="badge paused">休止中</span>':p.status==='ended'?'<span class="badge paused">使用終了</span>':'')+'</summary><div class="body">'+
+      tagsOf(p).map(t=>'<span class="tag'+(t==='retinoid'||t==='acid'||t==='bpo'?' w':'')+'">'+esc(TAGS[t]||t)+'</span>').join('')+(p.sensitive?'<span class="tag w">刺激が強め</span>':'')+
+      (p.memo?'\n'+esc(p.memo):'')+officialHtml(p)+explainHtml(p.ing,p.cat)+(p.ing?'<details><summary class="sub">全成分を見る</summary><div class="sub">'+esc(p.ing)+'</div></details>':'')+
+      '<div class="row"><button class="btn sm" data-act="editp" data-id="'+id+'">編集</button>'+
+      (p.status==='ended'?'<button class="btn sm" data-act="pstat" data-id="'+id+'" data-s="active">また使う</button>':
+       (p.status==='active'?'<button class="btn sm" data-act="pstat" data-id="'+id+'" data-s="paused">休止する</button>':'<button class="btn sm" data-act="pstat" data-id="'+id+'" data-s="active">再開する</button>')+
+       (p.used?'<button class="btn sm" data-act="pstat" data-id="'+id+'" data-s="ended">使用終了</button>':'<button class="btn sm danger" data-act="pstat" data-id="'+id+'" data-s="removed">削除</button>'))+
+      '</div></div></details>';};
   for(const c of CATS){
-    const list=ps.filter(([,p])=>p.cat===c);if(!list.length)continue;
+    const list=cur.filter(([,p])=>p.cat===c);if(!list.length)continue;
     h+='<div class="label">'+esc(c)+'</div>';
-    for(const[id,p]of list){const u=usedIn(id);
-      h+='<details class="prod"><summary><span><span class="pname">'+esc(p.name)+'</span><br><span class="sub">'+(u.length?esc(u.join('・')):'ルーティン未使用')+'</span></span>'+(p.status==='paused'?'<span class="badge paused">休止中</span>':'')+'</summary><div class="body">'+
-        tagsOf(p).map(t=>'<span class="tag'+(t==='retinoid'||t==='acid'||t==='bpo'?' w':'')+'">'+esc(TAGS[t]||t)+'</span>').join('')+(p.sensitive?'<span class="tag w">刺激が強め</span>':'')+
-        (p.memo?'\n'+esc(p.memo):'')+officialHtml(p)+explainHtml(p.ing,p.cat)+(p.ing?'<details><summary class="sub">全成分を見る</summary><div class="sub">'+esc(p.ing)+'</div></details>':'')+
-        '<div class="row"><button class="btn sm" data-act="editp" data-id="'+id+'">編集</button>'+(p.status==='active'?'<button class="btn sm" data-act="pstat" data-id="'+id+'" data-s="paused">休止する</button>':'<button class="btn sm" data-act="pstat" data-id="'+id+'" data-s="active">再開する</button>')+'<button class="btn sm danger" data-act="pstat" data-id="'+id+'" data-s="removed">削除</button></div></div></details>';}
+    for(const[id,p]of list)h+=item(id,p);
   }
+  if(ended.length){h+='<div class="label">使用終了</div><div class="sub" style="margin:0 0 6px">一度使った製品は、記録としてここに残ります。</div>';for(const[id,p]of ended)h+=item(id,p)}
   if(!ps.length)h+='<div class="card"><div class="sub">まだ製品がありません。「製品を追加」から登録してください。</div></div>';
   return h;
 }
+
 function editForm(){
   const n=view.np,auto=autoTags(n.ing);
   let h='<h2 style="margin:8px 0 6px">'+(n.id?'製品を編集':'製品を追加')+'</h2><div class="card">'+ocrBox()+
@@ -672,7 +682,7 @@ document.getElementById('ocrfile').addEventListener('change',e=>{const fs=[...(e
 /* ---------- ダイアログ ---------- */
 const dlg=document.getElementById('dlg');
 function openAddStep(){
-  const ps=Object.entries(S.products).filter(([,p])=>p.status!=='removed');
+  const ps=Object.entries(S.products).filter(([,p])=>p.status!=='removed'&&p.status!=='ended');
   dlg.innerHTML='<h3 style="margin:0 0 6px">'+DJ[DK.indexOf(view.wday)]+'曜日の'+PJ[view.wmode]+'に追加</h3><div class="list-pick">'+
     (ps.length?CATS.map(c=>{const l=ps.filter(([,p])=>p.cat===c);return l.length?'<div class="label">'+esc(c)+'</div>'+l.map(([id,p])=>'<button data-act="pick" data-id="'+id+'">'+esc(p.name)+(p.status==='paused'?'（休止中）':'')+'</button>').join(''):''}).join(''):'<div class="sub">製品がまだありません。</div>')+
     '<div class="label">製品以外の手順</div><input type="text" id="free" placeholder="例：ぬるま湯で洗う"><div class="row"><button class="btn sm" data-act="pickfree">この手順を追加</button><button class="btn sm" data-act="pickwait">「よく乾かす（待ち時間）」を追加</button></div></div>'+
@@ -713,7 +723,7 @@ async function importJsonText(text,opts={}){
   if(typeof isMine==='function'&&isMine(o))o=convertMine(o.data&&o.data.products?o.data:o,o.data?o:null);
   if(!o||!o.products||!o.routines)throw new Error('データの形式が違います');
   if(Object.keys(S.products).length&&!opts.silent&&!confirm('今のデータを、読み込むデータで置き換えますか？'))return false;
-  const old=S;S=Object.assign(blank(),o);if(old&&old.routines){for(const pp of['am','pm'])for(const dk of Object.keys(S.routines[pp]||{})){const ol=(((old.routines||{})[pp]||{})[dk]||[]).slice();for(const it of S.routines[pp][dk]||[]){const i=ol.findIndex(x=>x&&x.p&&x.p===it.p);if(i>=0){it.id=ol[i].id;ol.splice(i,1)}}}}if(old){if(!Object.keys(S.log||{}).length)S.log=old.log||{};if(!Object.keys(S.memo||{}).length)S.memo=old.memo||{}}S.started=true;save();
+  const old=S;S=Object.assign(blank(),o);if(old&&old.products)for(const[id,p]of Object.entries(old.products))if(p&&!S.products[id]&&p.status!=='removed')S.products[id]=(p.used||p.status==='ended'||['am','pm'].some(pp=>Object.values(((old.routines||{})[pp])||{}).some(l=>(l||[]).some(x=>x&&x.p===id))))?Object.assign({},p,{status:'ended',used:true}):p;if(old&&old.routines){for(const pp of['am','pm'])for(const dk of Object.keys(S.routines[pp]||{})){const ol=(((old.routines||{})[pp]||{})[dk]||[]).slice();for(const it of S.routines[pp][dk]||[]){const i=ol.findIndex(x=>x&&x.p&&x.p===it.p);if(i>=0){it.id=ol[i].id;ol.splice(i,1)}}}}if(old){if(!Object.keys(S.log||{}).length)S.log=old.log||{};if(!Object.keys(S.memo||{}).length)S.memo=old.memo||{}}S.started=true;save();
   if(!opts.fromCache){try{const c=await caches.open('skn-transfer');await c.put(TRANSFER(),new Response(String(text)))}catch(e){}}
   view.showTop=false;view.tab='today';render();toast('データを読み込みました');return true;
 }
@@ -768,7 +778,7 @@ document.addEventListener('click',e=>{
     break}
   case'osearch':{readForm();const q=(view.np.name||'').trim();if(!q){toast('先に製品名を入れてください');break}window.open('https://www.google.com/search?q='+encodeURIComponent(q+' 公式 全成分'),'_blank','noopener');break}
   case'cancelp':view.np=null;view.ocr=null;render();break;
-  case'pstat':{const p=S.products[b.dataset.id],s=b.dataset.s;if(s==='removed'){if(!confirm(p.name+'を削除しますか？ルーティンからも外れます。'))break;for(const pp of['am','pm'])for(const k in S.routines[pp])S.routines[pp][k]=S.routines[pp][k].filter(x=>x.p!==b.dataset.id);delete S.products[b.dataset.id]}else p.status=s;save();render();toast(s==='active'?'再開しました':s==='paused'?'休止しました':'削除しました');break}
+  case'pstat':{const p=S.products[b.dataset.id],s=b.dataset.s;if(s==='ended'){if(!confirm(p.name+'を使用終了にしますか？ルーティンから外れ、製品一覧の「使用終了」に残ります。'))break;for(const pp of['am','pm'])for(const k in S.routines[pp])S.routines[pp][k]=S.routines[pp][k].filter(x=>x.p!==b.dataset.id);p.status='ended';p.used=true}else if(s==='removed'){if(!confirm(p.name+'を削除しますか？ルーティンからも外れます。'))break;for(const pp of['am','pm'])for(const k in S.routines[pp])S.routines[pp][k]=S.routines[pp][k].filter(x=>x.p!==b.dataset.id);delete S.products[b.dataset.id]}else p.status=s;save();render();toast(s==='active'?'再開しました':s==='paused'?'休止しました':s==='ended'?'使用終了にしました':'削除しました');break}
   case'ocrname':{readForm();const l=view.ocr.lines[+b.dataset.i];view.np.name=view.np.name?view.np.name+' '+l:l;render();break}
   case'ocring':{readForm();const t=view.ocr.ing||view.ocr.text.replace(/\n+/g,'');view.np.ing=view.np.ing?view.np.ing+'、'+t:t;render();break}
   case'ocrclear':readForm();view.ocr=null;render();break;
